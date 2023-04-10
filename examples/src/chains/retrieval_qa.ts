@@ -29,4 +29,16 @@ export const run = async () => {
     }
   }
   */
+
+  // You can also use Map Reduce chain method
+  const mapReduceChain = RetrievalQAChain.fromLLM(
+    model,
+    vectorStore.asRetriever(),
+    { chainType: "map_reduce_documents_chain" }
+  );
+
+  const mapReduceChainRes = await mapReduceChain.call({
+    query: "What did the president say about Justice Breyer?",
+  });
+  console.log(mapReduceChainRes);
 };

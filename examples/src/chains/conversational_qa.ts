@@ -31,4 +31,17 @@ export const run = async () => {
     chat_history: chatHistory,
   });
   console.log(followUpRes);
+
+  /* You can also use Map Reduce chain method */
+  const mapReduceChain = ConversationalRetrievalQAChain.fromLLM(
+    model,
+    vectorStore.asRetriever(),
+    { chainType: "map_reduce_documents_chain" }
+  );
+
+  const mapReduceChainRes = await mapReduceChain.call({
+    question,
+    chat_history: [],
+  });
+  console.log(mapReduceChainRes);
 };
