@@ -2,7 +2,10 @@ import { BaseChain } from "./base.js";
 import { BaseLLM } from "../llms/index.js";
 import { SerializedVectorDBQAChain } from "./serde.js";
 import { ChainValues, BaseRetriever } from "../schema/index.js";
-import { loadQAStuffChain } from "./question_answering/load.js";
+import {
+  loadQAMapReduceChain,
+  loadQAStuffChain,
+} from "./question_answering/load.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type LoadValues = Record<string, any>;
@@ -86,13 +89,25 @@ export class RetrievalQAChain
     retriever: BaseRetriever,
     options?: Partial<
       Omit<RetrievalQAChainInput, "combineDocumentsChain" | "index">
-    >
+    > & { chainType?: string }
   ): RetrievalQAChain {
-    const qaChain = loadQAStuffChain(llm);
+    const { chainType = "stuff_documents_chain", ...rest } = options ?? {};
+
+    let qaChain: BaseChain;
+
+    if (chainType === "stuff_documents_chain") {
+      qaChain = loadQAStuffChain(llm);
+    } else if (chainType === "map_reduce_documents_chain") {
+      qaChain = loadQAMapReduceChain(llm);
+    } else {
+      throw new Error(
+        `Unknown chain type ${chainType}. Chain type should be one of the following: stuff_documents_chain, map_reduce_documents_chain.`
+      );
+    }
     return new this({
       retriever,
       combineDocumentsChain: qaChain,
-      ...options,
+      ...rest,
     });
   }
 }

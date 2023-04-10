@@ -4,7 +4,10 @@ import { SerializedChatVectorDBQAChain } from "./serde.js";
 import { ChainValues, BaseRetriever } from "../schema/index.js";
 import { BaseChain } from "./base.js";
 import { LLMChain } from "./llm_chain.js";
-import { loadQAStuffChain } from "./question_answering/load.js";
+import {
+  loadQAMapReduceChain,
+  loadQAStuffChain,
+} from "./question_answering/load.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type LoadValues = Record<string, any>;
@@ -15,13 +18,6 @@ Chat History:
 {chat_history}
 Follow Up Input: {question}
 Standalone question:`;
-
-const qa_template = `Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
-
-{context}
-
-Question: {question}
-Helpful Answer:`;
 
 export interface ConversationalRetrievalQAChainInput {
   retriever: BaseRetriever;
@@ -135,15 +131,34 @@ export class ConversationalRetrievalQAChain
       returnSourceDocuments?: boolean;
       questionGeneratorTemplate?: string;
       qaTemplate?: string;
+      chainType?: string;
     } = {}
   ): ConversationalRetrievalQAChain {
-    const { questionGeneratorTemplate, qaTemplate, ...rest } = options;
+    const {
+      questionGeneratorTemplate,
+      qaTemplate,
+      chainType = "stuff_documents_chain",
+      ...rest
+    } = options;
     const question_generator_prompt = PromptTemplate.fromTemplate(
       questionGeneratorTemplate || question_generator_template
     );
-    const qa_prompt = PromptTemplate.fromTemplate(qaTemplate || qa_template);
 
-    const qaChain = loadQAStuffChain(llm, { prompt: qa_prompt });
+    let qaChain: BaseChain;
+
+    const qaPrompt = qaTemplate
+      ? PromptTemplate.fromTemplate(qaTemplate)
+      : undefined;
+
+    if (chainType === "stuff_documents_chain") {
+      qaChain = loadQAStuffChain(llm, { prompt: qaPrompt });
+    } else if (chainType === "map_reduce_documents_chain") {
+      qaChain = loadQAMapReduceChain(llm, { combineMapPrompt: qaPrompt });
+    } else {
+      throw new Error(
+        `Unknown chain type ${chainType}. Chain type should be one of the following: stuff_documents_chain, map_reduce_documents_chain.`
+      );
+    }
     const questionGeneratorChain = new LLMChain({
       prompt: question_generator_prompt,
       llm,
